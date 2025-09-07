@@ -1,7 +1,7 @@
 use actix_web::{App, HttpServer};
 mod models;
 mod routes;
-
+mod validate;
 #[actix_web::main]
 
 async fn main() -> std::io::Result<()> {
