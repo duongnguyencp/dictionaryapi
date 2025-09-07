@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::fmt::Display;
 
-use actix_web::{FromRequest, HttpRequest, dev::Payload, web::Query};
+use actix_web::{Error, FromRequest, HttpRequest, dev::Payload, web::Query};
 
-use crate::validate::format_validators::{ErrorResponse, ValidationErrorFormatter};
+use crate::validate::format_validators::ValidationErrorFormatter;
 
 use futures_util::{FutureExt, future::LocalBoxFuture};
 use serde::de::DeserializeOwned;
@@ -10,9 +10,9 @@ use validator::Validate;
 pub struct ValidateQuery<T>(pub T);
 impl<T> FromRequest for ValidateQuery<T>
 where
-    T: DeserializeOwned + Validate + 'static,
+    T: DeserializeOwned + Validate + 'static + Display,
 {
-    type Error = ErrorResponse;
+    type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, payload: &mut Payload) -> Self::Future {
@@ -23,12 +23,10 @@ where
                     let inner = query.0;
                     match inner.validate() {
                         Ok(_) => Ok(ValidateQuery(inner)),
-                        Err(error) => Err(error.format_errors()),
+                        Err(error) => Err(Error::from(error.format_errors())),
                     }
                 }
-                Err(_) => Err(ErrorResponse {
-                    errors: HashMap::new(),
-                }),
+                Err(error) => Err(error),
             }
         }
         .boxed_local()
