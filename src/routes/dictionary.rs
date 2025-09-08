@@ -1,28 +1,19 @@
 use crate::models::word::WordEntry;
+use crate::validate::func_validation::custom_validation;
 use crate::validate::validator::ValidateQuery;
 use actix_web::{HttpResponse, Responder, get};
 use core::fmt;
 use serde::Deserialize;
-use std::borrow::Cow;
 use std::fmt::Display;
 use std::fs;
-use validator::{Validate, ValidationError};
+use validator::Validate;
 
-fn not_blank(val: &str) -> Result<(), ValidationError> {
-    if val.trim() == "\"\"" {
-        let mut err = ValidationError::new("empty_string");
-        err.message = Some(Cow::Borrowed("Field can not be empty string"));
-        Err(err)
-    } else {
-        Ok(())
-    }
-}
 #[derive(Deserialize, Validate)]
 struct InputData {
     #[validate(
         required(message = "Search query is required"),
         length(min = 1, message = "Field can not be empty string"),
-        custom = "not_blank"
+        custom = "custom_validation"
     )]
     value: Option<String>,
 }

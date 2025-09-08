@@ -10,3 +10,6 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 validator = { version = "0.16", features = ["derive"] }
 futures-util = "0.3"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tracing-actix-web = "0.7" #
