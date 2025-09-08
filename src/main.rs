@@ -4,6 +4,7 @@ use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt;
 mod models;
 mod routes;
+mod utils;
 mod validate;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
