@@ -1,11 +1,10 @@
-use crate::models::word::WordEntry;
+use crate::utils::bigquery::BigQueryWrapper;
 use crate::validate::func_validation::custom_validation;
 use crate::validate::validator::ValidateQuery;
 use actix_web::{HttpResponse, Responder, get};
 use core::fmt;
 use serde::Deserialize;
 use std::fmt::Display;
-use std::fs;
 use validator::Validate;
 
 #[derive(Deserialize, Validate)]
@@ -25,12 +24,19 @@ impl Display for InputData {
 #[get("/search")]
 pub async fn search(query: ValidateQuery<InputData>) -> impl Responder {
     let word = query.0;
-    let path: String = format!("words/{}.json", word);
-    match fs::read_to_string(&path) {
-        Ok(data) => {
-            let entry: WordEntry = serde_json::from_str(&data).unwrap();
-            HttpResponse::Ok().json(entry)
+    let query_literal: String = format!(
+        "SELECT  FROM `dictionary-project-471510.dictionary.dictionary` where word like %{}% LIMIT 1000",
+        word.value.unwrap_or_default()
+    );
+    let connect_bq = BigQueryWrapper::new().await;
+    match connect_bq {
+        Ok(connection) => {
+            let query = connection.query(&query_literal).await;
+            match query {
+                Ok(data) => HttpResponse::Ok().json(data),
+                Err(_) => HttpResponse::InternalServerError().body("InternalServerError"),
+            }
         }
-        Err(_) => HttpResponse::NotFound().body("Word not found"),
+        Err(_) => HttpResponse::InternalServerError().body("InternalServerError"),
     }
 }
