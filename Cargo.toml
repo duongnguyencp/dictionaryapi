@@ -16,3 +16,4 @@ tracing-actix-web = "0.7" #
 gcp-bigquery-client = "0.26"  # or latest
 dotenv="0.15"
 base64="0.21"
+yup-oauth2="12.1.0"

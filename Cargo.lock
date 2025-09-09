@@ -485,6 +485,7 @@ dependencies = [
  "tracing-actix-web",
  "tracing-subscriber",
  "validator",
+ "yup-oauth2",
 ]
 
 [[package]]
