@@ -2,6 +2,7 @@ use actix_web::{App, HttpServer};
 use tracing::info;
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::fmt;
+mod middleware;
 mod models;
 mod routes;
 mod utils;
@@ -21,6 +22,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(TracingLogger::default())
+            .wrap(middleware::helmet::SecurityHeaders)
             .service(routes::dictionary::search)
     })
     .bind(("127.0.0.1", 5174))?
