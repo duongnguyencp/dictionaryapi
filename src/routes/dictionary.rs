@@ -25,7 +25,7 @@ impl Display for InputData {
 pub async fn search(query: ValidateQuery<InputData>) -> impl Responder {
     let word = query.0;
     let query_literal: String = format!(
-        "SELECT  FROM `dictionary-project-471510.dictionary.dictionary` where word like %{}% LIMIT 1000",
+        "SELECT *  FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}'' LIMIT 1000",
         word.value.unwrap_or_default()
     );
     let connect_bq = BigQueryWrapper::new().await;

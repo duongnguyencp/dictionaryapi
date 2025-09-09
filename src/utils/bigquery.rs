@@ -29,16 +29,22 @@ impl BigQueryWrapper {
     pub async fn query(&self, sql: &str) -> Result<Vec<Value>, Box<dyn Error>> {
         let request = QueryRequest::new(sql.to_string());
 
-        let result_set = self.client.job().query(&self.project_id, request).await?;
+        match self.client.job().query(&self.project_id, request).await {
+            Ok(result_set) => {
+                let mut results = Vec::<Value>::new();
+                if let Some(rows) = result_set.rows {
+                    for row in rows {
+                        let row_json = serde_json::to_value(&row)?;
+                        results.push(row_json);
+                    }
+                }
 
-        let mut results = Vec::<Value>::new();
-        if let Some(rows) = result_set.rows {
-            for row in rows {
-                let row_json = serde_json::to_value(&row)?;
-                results.push(row_json);
+                Ok(results)
+            }
+            Err(error) => {
+                println!("{}", error);
+                return Err(Box::new(error));
             }
         }
-
-        Ok(results)
     }
 }
