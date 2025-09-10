@@ -1,7 +1,7 @@
-use crate::utils::bigquery::BigQueryWrapper;
 use crate::validate::func_validation::custom_validation;
 use crate::validate::validator::ValidateQuery;
-use actix_web::{HttpResponse, Responder, get};
+use crate::{models::error::AppError, utils::bigquery::BigQueryWrapper};
+use actix_web::{App, Error, HttpResponse, Responder, get};
 use core::fmt;
 use serde::Deserialize;
 use std::fmt::Display;
@@ -22,7 +22,7 @@ impl Display for InputData {
     }
 }
 #[get("/search")]
-pub async fn search(query: ValidateQuery<InputData>) -> impl Responder {
+pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, Error> {
     let word = query.0;
     let query_literal: String = format!(
         "SELECT *  FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1000",
@@ -33,10 +33,10 @@ pub async fn search(query: ValidateQuery<InputData>) -> impl Responder {
         Ok(connection) => {
             let query = connection.query(&query_literal).await;
             match query {
-                Ok(data) => HttpResponse::Ok().json(data),
-                Err(_) => HttpResponse::InternalServerError().body("InternalServerError"),
+                Ok(data) => Ok(HttpResponse::Ok().json(data)),
+                Err(_) => Err(Error::from(AppError::Internal)),
             }
         }
-        Err(_) => HttpResponse::InternalServerError().body("InternalServerError"),
+        Err(_) => Err(Error::from(AppError::Internal)),
     }
 }
