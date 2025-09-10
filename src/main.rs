@@ -18,10 +18,11 @@ async fn main() -> std::io::Result<()> {
     // Init global subscriber
     tracing_subscriber::fmt().event_format(format).init();
     info!("🚀 Starting Dictionary Web server...");
-
     HttpServer::new(|| {
         App::new()
             .wrap(TracingLogger::default())
+            .wrap(middleware::cors::init_cors())
+            .wrap(middleware::rate_limit::init_rl())
             .wrap(middleware::helmet::SecurityHeaders)
             .service(routes::dictionary::search)
     })
