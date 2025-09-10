@@ -7,6 +7,7 @@ pub enum AppError {
     BadRequest,
     Internal,
     NotFound,
+    Timeout,
 }
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -14,6 +15,7 @@ impl fmt::Display for AppError {
             AppError::BadRequest => write!(f, "Invalid Input provided"),
             AppError::Internal => write!(f, "Internal Server Error"),
             AppError::NotFound => write!(f, "Not found"),
+            AppError::Timeout => write!(f, "Request timeout"),
         }
     }
 }
@@ -26,6 +28,7 @@ impl ResponseError for AppError {
             AppError::BadRequest => HttpResponse::BadRequest().json(body),
             AppError::NotFound => HttpResponse::NotFound().json(body),
             AppError::Internal => HttpResponse::InternalServerError().json(body),
+            AppError::Timeout => HttpResponse::GatewayTimeout().json(body),
         }
     }
 }
