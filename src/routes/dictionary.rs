@@ -4,6 +4,7 @@ use crate::{models::error::AppError, utils::bigquery::BigQueryWrapper};
 use actix_web::{App, Error, HttpResponse, Responder, get};
 use core::fmt;
 use serde::Deserialize;
+use serde::Serialize;
 use std::fmt::Display;
 use validator::Validate;
 
@@ -21,6 +22,19 @@ impl Display for InputData {
         write!(f, "[{}])", self.value.clone().unwrap_or_default())
     }
 }
+#[derive(Debug, Serialize, Deserialize)]
+struct Meaning {
+    part_of_speech: String,
+    definition: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DictionaryEntry {
+    source_url: String,
+    word: String,
+    phonetic: String,
+    meanings: Vec<Meaning>,
+}
 #[get("/search")]
 pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, Error> {
     let word = query.0;
@@ -33,7 +47,7 @@ pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, E
         Ok(connection) => {
             let query = connection.query(&query_literal).await;
             match query {
-                Ok(data) => Ok(HttpResponse::Ok().json(data)),
+                Ok(data) => Ok(HttpResponse::Ok().json(data.first())),
                 Err(_) => Err(Error::from(AppError::Internal)),
             }
         }

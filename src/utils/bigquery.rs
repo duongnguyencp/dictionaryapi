@@ -1,7 +1,13 @@
 use base64::{Engine, engine::general_purpose};
 use dotenv::dotenv;
+use gcp_bigquery_client::model::field_type::FieldType;
+use gcp_bigquery_client::model::row::Row;
+use gcp_bigquery_client::model::table::Table;
+use gcp_bigquery_client::model::table_row::TableRow;
+use gcp_bigquery_client::model::table_schema::TableSchema;
 use gcp_bigquery_client::{Client, model::query_request::QueryRequest};
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::collections::HashMap;
 use std::env;
 use std::error::Error;
 use yup_oauth2::ServiceAccountKey;
@@ -25,6 +31,28 @@ impl BigQueryWrapper {
         Ok(Self { client, project_id })
     }
 
+    pub fn map_to_schema(&self, row: &TableRow, schema: &TableSchema) -> Value {
+        let mut value = json!({});
+        if let Some(fields) = schema.fields.clone() {
+            for (index, field) in fields.into_iter().enumerate() {
+                if let Some(columns) = row.columns.clone() {
+                    if let Some(cell) = columns.get(index) {
+                        let value_cell = cell.value.clone().unwrap_or_default();
+                        value[field.name.clone()] = value_cell.clone();
+                        if matches!(field.r#type, FieldType::Record) {
+                            for (sub_idx, sub_field) in
+                                field.fields.unwrap_or_default().into_iter().enumerate()
+                            {
+                                value[field.name.clone()][sub_field.name.clone()] =
+                                    value_cell.as_array().unwrap();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        value
+    }
     /// Run a SQL query, return each row as serde_json::Value
     pub async fn query(&self, sql: &str) -> Result<Vec<Value>, Box<dyn Error>> {
         let request = QueryRequest::new(sql.to_string());
@@ -32,10 +60,11 @@ impl BigQueryWrapper {
         match self.client.job().query(&self.project_id, request).await {
             Ok(result_set) => {
                 let mut results = Vec::<Value>::new();
+                let scheme: TableSchema = result_set.schema.unwrap();
                 if let Some(rows) = result_set.rows {
                     for row in rows {
-                        let row_json = serde_json::to_value(&row)?;
-                        results.push(row_json);
+                        let value = self.map_to_schema(&row, &scheme);
+                        results.push(value);
                     }
                 }
 
