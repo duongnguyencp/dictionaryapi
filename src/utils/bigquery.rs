@@ -39,14 +39,6 @@ impl BigQueryWrapper {
                     if let Some(cell) = columns.get(index) {
                         let value_cell = cell.value.clone().unwrap_or_default();
                         value[field.name.clone()] = value_cell.clone();
-                        if matches!(field.r#type, FieldType::Record) {
-                            for (sub_idx, sub_field) in
-                                field.fields.unwrap_or_default().into_iter().enumerate()
-                            {
-                                value[field.name.clone()][sub_field.name.clone()] =
-                                    value_cell.as_array().unwrap();
-                            }
-                        }
                     }
                 }
             }

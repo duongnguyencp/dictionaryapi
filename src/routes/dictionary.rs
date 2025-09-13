@@ -5,6 +5,7 @@ use actix_web::{App, Error, HttpResponse, Responder, get};
 use core::fmt;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::{Value, json};
 use std::fmt::Display;
 use validator::Validate;
 
@@ -39,7 +40,7 @@ pub struct DictionaryEntry {
 pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, Error> {
     let word = query.0;
     let query_literal: String = format!(
-        "SELECT *  FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1000",
+        "SELECT audio_save, source_url, `meanings`[SAFE_OFFSET(0)].partOfSpeech, phonetic, word as word  FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1000",
         word.value.unwrap_or_default()
     );
     let connect_bq = BigQueryWrapper::new().await;
@@ -47,7 +48,13 @@ pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, E
         Ok(connection) => {
             let query = connection.query(&query_literal).await;
             match query {
-                Ok(data) => Ok(HttpResponse::Ok().json(data.first())),
+                Ok(data) => {
+                    if let Some(data_first) = data.first() {
+                        Ok(HttpResponse::Ok().json(data_first))
+                    } else {
+                        Err(Error::from(AppError::NotFound))
+                    }
+                }
                 Err(_) => Err(Error::from(AppError::Internal)),
             }
         }
