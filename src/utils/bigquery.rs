@@ -1,3 +1,4 @@
+use actix_governor::PeerIpKeyExtractor;
 use base64::{Engine, engine::general_purpose};
 use dotenv::dotenv;
 use gcp_bigquery_client::model::table_row::TableRow;
@@ -18,6 +19,8 @@ pub struct BigQueryWrapper {
 pub struct Field {
     name: Option<String>,
     fields: Option<Vec<Field>>,
+    #[serde(rename = "type")]
+    r#type: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -68,24 +71,36 @@ impl Serialize for Row {
         S: serde::Serializer,
     {
         let mut map = serializer.serialize_map(None)?;
-        println!("{:?}", self);
-        if let Some(name) = &self.name
-            && let Some(v) = &self.v
-        {
-            match v {
-                VType::Str(str_v) => {
+        println!("Serializer {:?}", self);
+        if let Some(name) = &self.name {
+            match &self.v {
+                Some(VType::Str(str_v)) => {
                     map.serialize_entry(name.as_str(), str_v)?;
                 }
-                VType::Arr(arr_v) => {
+                Some(VType::Arr(arr_v)) => {
                     map.serialize_entry(name.as_str(), arr_v)?;
+                }
+                Some(VType::Object(obj_v)) => {
+                    map.serialize_entry(name.as_str(), obj_v)?;
+                }
+                None => {
+                    map.serialize_entry(name.as_str(), &"".to_string())?;
+                }
+                _ => (),
+            }
+        } else {
+            match &self.v {
+                Some(VType::Str(str_v)) => {
+                    map.serialize_entry("value", str_v)?;
+                }
+                Some(VType::Object(obj_v)) => {
+                    map.serialize_entry("value", obj_v)?;
                 }
                 _ => (),
             }
         }
-        if let Some(f) = &self.f
-            && let Some(name) = &self.name
-        {
-            map.serialize_entry(name.as_str(), f)?;
+        if let Some(f) = &self.f {
+            map.serialize_entry("field", f)?;
         }
         map.end()
     }
@@ -108,16 +123,24 @@ impl BigQueryWrapper {
     pub fn map_to_schema2(&self, row: &mut Row, field: &Field) -> Result<(), Box<dyn Error>> {
         if let Some(val_fields) = &mut row.f
             && let Some(f_field) = &field.fields
+            && let None = &field.r#type
         {
             for (r, f) in val_fields.iter_mut().zip(f_field.iter()) {
                 _ = self.map_to_schema2(r, f);
             }
         }
-        if let Some(VType::Arr(val_fields)) = &mut row.v
+        if let Some(VType::Arr(val_record)) = &mut row.v
             && let Some(f_field) = &field.fields
+            && &Some(String::from("RECORD")) == &field.r#type
         {
-            for (r, f) in val_fields.iter_mut().zip(f_field.iter()) {
-                _ = self.map_to_schema2(r, f);
+            for (r) in val_record.iter_mut() {
+                if let Some(VType::Object(each_record)) = &mut r.v
+                    && let Some(record_field) = &mut each_record.f
+                {
+                    for (field_ele_arr, f) in record_field.iter_mut().zip(f_field.iter()) {
+                        _ = self.map_to_schema2(field_ele_arr, f);
+                    }
+                }
             }
         }
         row.name = field.name.clone();
@@ -135,13 +158,15 @@ impl BigQueryWrapper {
                     for row in rows {
                         let row_val = serde_json::to_value(row)?;
                         let field_val = serde_json::to_value(scheme.clone())?;
+                        println!("{:?}", field_val);
+                        println!("{:?}", row_val);
                         let mut row_val_struct: Row = serde_json::from_value(row_val)?;
+                        let field_val_struct: Field = serde_json::from_value(field_val)?;
                         println!("{:?}", row_val_struct);
-                        // let _ = self.map_to_schema2(
-                        //     &mut row_val_struct,
-                        //     &serde_json::from_value(field_val)?,
-                        // );
+                        println!("{:?}", field_val_struct);
+                        let _ = self.map_to_schema2(&mut row_val_struct, &field_val_struct);
                         results.push(serde_json::to_value(row_val_struct)?);
+                        break;
                     }
                 }
 
