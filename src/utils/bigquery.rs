@@ -166,7 +166,6 @@ impl BigQueryWrapper {
                         println!("{:?}", field_val_struct);
                         let _ = self.map_to_schema2(&mut row_val_struct, &field_val_struct);
                         results.push(serde_json::to_value(row_val_struct)?);
-                        break;
                     }
                 }
 

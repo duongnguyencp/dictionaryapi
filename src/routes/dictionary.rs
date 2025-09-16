@@ -41,7 +41,7 @@ pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, E
     let word = query.0;
     let query_literal: String = format!(
         "SELECT  word,audio_save, source_url, phonetic, meanings 
-                FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1000",
+                FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1",
         word.value.unwrap_or_default()
     );
     let connect_bq = BigQueryWrapper::new().await;
