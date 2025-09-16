@@ -22,20 +22,17 @@ pub struct Field {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Row {
-    #[serde(
-        default,
-        deserialize_with = "deserialize_v",
-        serialize_with = "serialize_v"
-    )]
+    #[serde(default, deserialize_with = "deserialize_v")]
     v: Option<VType>,
-    f: Option<VType>,
+    f: Option<Vec<Row>>,
     name: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
 enum VType {
     Str(String),
     Arr(Vec<Row>),
+    Object(Box<Row>),
 }
 fn deserialize_v<'de, D>(deserializer: D) -> Result<Option<VType>, D::Error>
 where
@@ -53,18 +50,25 @@ where
                     Err(_) => Ok(None),
                 }
             }
+            Value::Object(ob) => {
+                let obj = serde_json::from_value(Value::Object(ob));
+                match obj {
+                    Ok(v) => Ok(Some(VType::Object(v))),
+                    Err(_) => Ok(None),
+                }
+            }
             _ => Ok(None),
         },
         Err(error) => Ok(None),
     }
 }
-
 impl Serialize for Row {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         let mut map = serializer.serialize_map(None)?;
+        println!("{:?}", self);
         if let Some(name) = &self.name
             && let Some(v) = &self.v
         {
@@ -75,17 +79,13 @@ impl Serialize for Row {
                 VType::Arr(arr_v) => {
                     map.serialize_entry(name.as_str(), arr_v)?;
                 }
+                _ => (),
             }
         }
         if let Some(f) = &self.f
             && let Some(name) = &self.name
         {
-            match f {
-                VType::Arr(arr_f) => {
-                    map.serialize_entry(name.as_str(), arr_f)?;
-                }
-                _ => (),
-            }
+            map.serialize_entry(name.as_str(), f)?;
         }
         map.end()
     }
@@ -106,7 +106,7 @@ impl BigQueryWrapper {
     }
 
     pub fn map_to_schema2(&self, row: &mut Row, field: &Field) -> Result<(), Box<dyn Error>> {
-        if let Some(VType::Arr(val_fields)) = &mut row.f
+        if let Some(val_fields) = &mut row.f
             && let Some(f_field) = &field.fields
         {
             for (r, f) in val_fields.iter_mut().zip(f_field.iter()) {
@@ -136,11 +136,11 @@ impl BigQueryWrapper {
                         let row_val = serde_json::to_value(row)?;
                         let field_val = serde_json::to_value(scheme.clone())?;
                         let mut row_val_struct: Row = serde_json::from_value(row_val)?;
-
-                        let _ = self.map_to_schema2(
-                            &mut row_val_struct,
-                            &serde_json::from_value(field_val)?,
-                        );
+                        println!("{:?}", row_val_struct);
+                        // let _ = self.map_to_schema2(
+                        //     &mut row_val_struct,
+                        //     &serde_json::from_value(field_val)?,
+                        // );
                         results.push(serde_json::to_value(row_val_struct)?);
                     }
                 }
