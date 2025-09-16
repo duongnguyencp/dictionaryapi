@@ -3,15 +3,93 @@ use dotenv::dotenv;
 use gcp_bigquery_client::model::table_row::TableRow;
 use gcp_bigquery_client::model::table_schema::TableSchema;
 use gcp_bigquery_client::{Client, model::query_request::QueryRequest};
-use serde_json::{Value, json};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
 use std::env;
 use std::error::Error;
+use tracing::field;
 use yup_oauth2::ServiceAccountKey;
 pub struct BigQueryWrapper {
     client: Client,
     project_id: String,
 }
+#[derive(Debug, Deserialize, Clone)]
+pub struct Field {
+    name: Option<String>,
+    fields: Option<Vec<Field>>,
+}
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct Row {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_v",
+        serialize_with = "serialize_v"
+    )]
+    v: Option<VType>,
+    f: Option<VType>,
+    name: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+enum VType {
+    Str(String),
+    Arr(Vec<Row>),
+}
+fn deserialize_v<'de, D>(deserializer: D) -> Result<Option<VType>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let result: Result<Value, _> = Deserialize::deserialize(deserializer);
+    println!("{:?}", result);
+    match result {
+        Ok(value) => match value {
+            Value::String(s) => Ok(Some(VType::Str(s))),
+            Value::Array(arr) => {
+                let items = serde_json::from_value(Value::Array(arr));
+                match items {
+                    Ok(v) => Ok(Some(VType::Arr(v))),
+                    Err(_) => Ok(None),
+                }
+            }
+            _ => Ok(None),
+        },
+        Err(error) => Ok(None),
+    }
+}
+
+impl Serialize for Row {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(None)?;
+        if let Some(name) = &self.name
+            && let Some(v) = &self.v
+        {
+            match v {
+                VType::Str(str_v) => {
+                    map.serialize_entry(name.as_str(), str_v)?;
+                }
+                VType::Arr(arr_v) => {
+                    map.serialize_entry(name.as_str(), arr_v)?;
+                }
+            }
+        }
+        if let Some(f) = &self.f
+            && let Some(name) = &self.name
+        {
+            match f {
+                VType::Arr(arr_f) => {
+                    map.serialize_entry(name.as_str(), arr_f)?;
+                }
+                _ => (),
+            }
+        }
+        map.end()
+    }
+}
 impl BigQueryWrapper {
     /// Initialize wrapper by reading base64 encoded key from env and project ID
     pub async fn new() -> Result<Self, Box<dyn Error>> {
@@ -27,68 +105,25 @@ impl BigQueryWrapper {
         Ok(Self { client, project_id })
     }
 
-    pub fn map_to_schema2(
-        &self,
-        row: &mut Value,
-        columns: &mut Value,
-    ) -> Result<(), Box<dyn Error>> {
-        let mut stack = vec![(columns, row)];
-        while !stack.is_empty() {
-            let node = stack.pop().ok_or("Error")?;
-            let left = node.0;
-            let right = node.1;
-            match left {
-                Value::Object(_) => {
-                    if let Some(values) = right["f"].as_array_mut()
-                        && let Some(fields) = left["fields"].as_array_mut()
-                    {
-                        for ele in fields.iter_mut().zip(values.iter_mut()) {
-                            stack.push(ele);
-                        }
-                    } else {
-                        if let Some(name_field) = left.get_mut("name")
-                            && let Some(val_key) =
-                                right.get_mut(name_field.as_str().ok_or("Error")?)
-                        {
-                            val_key = right.get_mut("v").clone().ok_or("Error")?;
-                        }
-                    }
-                }
-
-                _ => {}
+    pub fn map_to_schema2(&self, row: &mut Row, field: &Field) -> Result<(), Box<dyn Error>> {
+        if let Some(VType::Arr(val_fields)) = &mut row.f
+            && let Some(f_field) = &field.fields
+        {
+            for (r, f) in val_fields.iter_mut().zip(f_field.iter()) {
+                _ = self.map_to_schema2(r, f);
             }
         }
+        if let Some(VType::Arr(val_fields)) = &mut row.v
+            && let Some(f_field) = &field.fields
+        {
+            for (r, f) in val_fields.iter_mut().zip(f_field.iter()) {
+                _ = self.map_to_schema2(r, f);
+            }
+        }
+        row.name = field.name.clone();
         Ok(())
     }
 
-    pub fn map_to_schema(&self, row: &TableRow, schema: &TableSchema) -> Value {
-        let mut value = json!({});
-        if let Some(fields) = schema.fields.clone() {
-            for (index, field) in fields.into_iter().enumerate() {
-                if let Some(columns) = row.columns.clone() {
-                    if let Some(cell) = columns.get(index) {
-                        let value_cell = cell.value.clone().unwrap_or_default();
-                        let mode = String::from("REPEATED");
-                        if field.mode.unwrap_or_default().as_str() == "REPEATED" {
-                            let list = value_cell
-                                .as_array()
-                                .unwrap_or(&Vec::<Value>::new())
-                                .iter()
-                                .map(|ele| {
-                                    let temp = ele.clone();
-                                    temp["v"].clone()
-                                })
-                                .collect();
-                            value[field.name.clone()] = list;
-                        } else {
-                            value[field.name.clone()] = value_cell.clone();
-                        }
-                    }
-                }
-            }
-        }
-        value
-    }
     /// Run a SQL query, return each row as serde_json::Value
     pub async fn query(&self, sql: &str) -> Result<Vec<Value>, Box<dyn Error>> {
         let request = QueryRequest::new(sql.to_string());
@@ -99,10 +134,14 @@ impl BigQueryWrapper {
                 if let Some(rows) = result_set.rows {
                     for row in rows {
                         let row_val = serde_json::to_value(row)?;
-                        let field_val = serde_json::to_value(scheme.fields.clone())?;
-                        let json_val =
-                            self.map_to_schema2(&mut row_val.clone(), &mut field_val.to_owned())?;
-                        results.push(json_val);
+                        let field_val = serde_json::to_value(scheme.clone())?;
+                        let mut row_val_struct: Row = serde_json::from_value(row_val)?;
+
+                        let _ = self.map_to_schema2(
+                            &mut row_val_struct,
+                            &serde_json::from_value(field_val)?,
+                        );
+                        results.push(serde_json::to_value(row_val_struct)?);
                     }
                 }
 

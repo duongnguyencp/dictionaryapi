@@ -40,9 +40,8 @@ pub struct DictionaryEntry {
 pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, Error> {
     let word = query.0;
     let query_literal: String = format!(
-        "SELECT  word,audio_save, source_url, phonetic, meanings.partOfSpeech as partOfSpeech, 
-        meanings.synonyms as synonyms, definitions.example, definitions.definition 
-        FROM `dictionary-project-471510.dictionary.dictionary`, UNNEST(meanings) AS meanings, UNNEST(meanings.definitions) AS definitions where word  = '{}' LIMIT 1000",
+        "SELECT  word,audio_save, source_url, phonetic, meanings 
+                FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1000",
         word.value.unwrap_or_default()
     );
     let connect_bq = BigQueryWrapper::new().await;
@@ -57,7 +56,10 @@ pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, E
                         Err(Error::from(AppError::NotFound))
                     }
                 }
-                Err(_) => Err(Error::from(AppError::Internal)),
+                Err(error) => {
+                    println!("{:?}", error);
+                    Err(Error::from(AppError::Internal))
+                }
             }
         }
         Err(_) => Err(Error::from(AppError::Internal)),
