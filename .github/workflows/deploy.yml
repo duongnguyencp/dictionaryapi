@@ -23,8 +23,8 @@ jobs:
           shuttle-api-key: ${{ secrets.SHUTTLE_API_TOKEN }}
           project-id: proj_01K5C6C55RCF9TTCBA4BN8Y7NB
           secrets: | 
-            GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
-            GOOGLE_PROJECT_ID = "${{ secrets.GOOGLE_PROJECT_ID }}"
-            FRONT_END_ENDPOINT = "${{ secrets.FRONT_END_ENDPOINT  }}"
+            GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}'
+            GOOGLE_PROJECT_ID = '${{ secrets.GOOGLE_PROJECT_ID }}'
+            FRONT_END_ENDPOINT = '${{ secrets.FRONT_END_ENDPOINT  }}'
             
 
