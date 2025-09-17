@@ -18,14 +18,24 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - name: Create Secrets.toml
-        run: |
-          cat > Secrets.toml << EOF
-          GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
-          GOOGLE_PROJECT_ID = "${{ secrets.GOOGLE_PROJECT_ID }}"
-          FRONT_END_ENDPOINT = "${{ secrets.FRONT_END_ENDPOINT  }}"
-          EOF
+      # - name: Create Secrets.toml
+      #   run: |
+      #     cat > Secrets.toml << EOF
+      #     GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
+      #     GOOGLE_PROJECT_ID = "${{ secrets.GOOGLE_PROJECT_ID }}"
+      #     FRONT_END_ENDPOINT = "${{ secrets.FRONT_END_ENDPOINT  }}"
+      #     EOF
       - uses: shuttle-hq/deploy-action@v2
         with:
           shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
           project-id: proj_01K5C6C55RCF9TTCBA4BN8Y7NB
+        with:
+          shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
+          project-id: proj_01K5C6C55RCF9TTCBA4BN8Y7NB
+          extra-args: --allow-dirty --debug
+          secrets: |
+            GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
+            GOOGLE_PROJECT_ID = "${{ secrets.GOOGLE_PROJECT_ID }}"
+            FRONT_END_ENDPOINT = "${{ secrets.FRONT_END_ENDPOINT  }}"
+
+
