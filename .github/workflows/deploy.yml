@@ -3,7 +3,7 @@ name: Deploy to Shuttle
 on:
   push:
     branches:
-      - master # or your deployment branch
+      - master # or your deployment branch master
 
 jobs:
   deploy:
