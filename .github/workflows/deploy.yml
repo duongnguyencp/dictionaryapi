@@ -21,7 +21,8 @@ jobs:
 
       - name: Install Shuttle CLI
         run: cargo add shuttle-cli
-
+      - name: Add Cargo bin to PATH
+        run: echo "${HOME}/.cargo/bin" >> $GITHUB_PATH
       - name: Login to Shuttle
         run: shuttle login --token ${{ secrets.SHUTTLE_API_TOKEN }}
 
