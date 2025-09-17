@@ -29,9 +29,6 @@ jobs:
         with:
           shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
           project-id: proj_01K5C6C55RCF9TTCBA4BN8Y7NB
-        with:
-          shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
-          project-id: proj_01K5C6C55RCF9TTCBA4BN8Y7NB
           extra-args: --allow-dirty --debug
           secrets: |
             GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
