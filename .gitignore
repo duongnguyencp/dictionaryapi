@@ -1,3 +1,5 @@
 /target
-service_account.json
-service_account.b64
+service-account.json
+service-account.b64
+Secrets.toml
+/*.lock

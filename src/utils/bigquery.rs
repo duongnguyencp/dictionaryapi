@@ -1,4 +1,5 @@
 use actix_governor::PeerIpKeyExtractor;
+use actix_web::web;
 use base64::{Engine, engine::general_purpose};
 use dotenv::dotenv;
 use gcp_bigquery_client::model::table_row::TableRow;
@@ -11,6 +12,8 @@ use std::env;
 use std::error::Error;
 use tracing::field;
 use yup_oauth2::ServiceAccountKey;
+
+use crate::AppState;
 pub struct BigQueryWrapper {
     client: Client,
     project_id: String,
@@ -107,15 +110,15 @@ impl Serialize for Row {
 }
 impl BigQueryWrapper {
     /// Initialize wrapper by reading base64 encoded key from env and project ID
-    pub async fn new() -> Result<Self, Box<dyn Error>> {
+    pub async fn new(state: web::Data<AppState>) -> Result<Self, Box<dyn Error>> {
         dotenv().ok();
 
-        let encoded_key = env::var("GOOGLE_SERVICE_ACCOUNT_KEY_BASE64")?;
+        let encoded_key = state.config.account_key.clone();
         let decoded_key = general_purpose::STANDARD.decode(&encoded_key)?;
         let decoded_key_string: String = String::from_utf8(decoded_key)?;
         let service_account = serde_json::from_str::<ServiceAccountKey>(&decoded_key_string)?;
 
-        let project_id = env::var("GOOGLE_PROJECT_ID")?.to_string();
+        let project_id = state.config.project_id.clone();
         let client = Client::from_service_account_key(service_account, true).await?;
         Ok(Self { client, project_id })
     }

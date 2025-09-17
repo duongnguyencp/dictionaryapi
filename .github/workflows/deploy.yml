@@ -18,6 +18,13 @@ jobs:
         with:
           toolchain: stable
           override: true
+      - name: Create Secrets.toml
+        run: |
+          cat > Secrets.toml << EOF
+          GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 = "${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64 }}"
+          GOOGLE_PROJECT_ID = "${{ secrets.GOOGLE_PROJECT_ID }}"
+          FRONT_END_ENDPOINT = "${{ secrets.FRONT_END_ENDPOINT  }}"
+          EOF
       - name: Shuttle Deploy
         uses: shuttle-hq/deploy-action@v2
         with:

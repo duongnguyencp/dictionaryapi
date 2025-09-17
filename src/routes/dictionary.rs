@@ -1,11 +1,15 @@
+use crate::AppState;
 use crate::validate::func_validation::custom_validation;
 use crate::validate::validator::ValidateQuery;
 use crate::{models::error::AppError, utils::bigquery::BigQueryWrapper};
-use actix_web::{App, Error, HttpResponse, Responder, get};
+use actix_web::{Error, HttpResponse, Responder, get};
+use actix_web::{
+    Result,
+    web::{self},
+};
 use core::fmt;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::{Value, json};
 use std::fmt::Display;
 use validator::Validate;
 
@@ -37,14 +41,17 @@ pub struct DictionaryEntry {
     meanings: Vec<Meaning>,
 }
 #[get("/search")]
-pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, Error> {
+pub async fn search(
+    query: ValidateQuery<InputData>,
+    state: web::Data<AppState>,
+) -> Result<impl Responder, Error> {
     let word = query.0;
     let query_literal: String = format!(
         "SELECT  word,audio_save, source_url, phonetic, meanings 
                 FROM `dictionary-project-471510.dictionary.dictionary` where word  = '{}' LIMIT 1",
         word.value.unwrap_or_default()
     );
-    let connect_bq = BigQueryWrapper::new().await;
+    let connect_bq = BigQueryWrapper::new(state).await;
     match connect_bq {
         Ok(connection) => {
             let query = connection.query(&query_literal).await;
