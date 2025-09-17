@@ -20,7 +20,7 @@ jobs:
           override: true
 
       - name: Install Shuttle CLI
-        run: cargo install shuttle-cli
+        run: cargo add shuttle-cli
 
       - name: Login to Shuttle
         run: shuttle login --token ${{ secrets.SHUTTLE_API_TOKEN }}
