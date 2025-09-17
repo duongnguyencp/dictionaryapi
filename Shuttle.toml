@@ -1,0 +1,8 @@
+[package]
+name = "dictionaryproject"
+version = "0.1.0"
+
+[service]
+type = "custom"
+command = "cargo run --release"
+port = 8080

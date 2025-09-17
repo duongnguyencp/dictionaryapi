@@ -1,0 +1,29 @@
+name: Deploy to Shuttle
+
+on:
+  push:
+    branches:
+      - master # or your deployment branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install Shuttle CLI
+        run: cargo install shuttle-cli
+
+      - name: Login to Shuttle
+        run: shuttle login --token ${{ secrets.SHUTTLE_API_TOKEN }}
+
+      - name: Deploy to Shuttle
+        run: shuttle deploy

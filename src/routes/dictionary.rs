@@ -51,7 +51,7 @@ pub async fn search(query: ValidateQuery<InputData>) -> Result<impl Responder, E
             match query {
                 Ok(data) => {
                     if let Some(data_first) = data.first() {
-                        Ok(HttpResponse::Ok().json(data))
+                        Ok(HttpResponse::Ok().json(data_first))
                     } else {
                         Err(Error::from(AppError::NotFound))
                     }
