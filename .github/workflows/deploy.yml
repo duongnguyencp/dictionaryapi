@@ -18,8 +18,7 @@ jobs:
         with:
           toolchain: stable
           override: true
-
-      steps:
+      - name: Shuttle Deploy
       - uses: shuttle-hq/deploy-action@v2
         with:
           shuttle-api-key: ${{ secrets.SHUTTLE_API_KEY }}
